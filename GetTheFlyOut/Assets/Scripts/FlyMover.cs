@@ -11,8 +11,6 @@ public class FlyMover : MonoBehaviour
 
     [SerializeField] private float flySpeed = 1;
 
-    [SerializeField] private float flyTurnRange = 180;
-
     [SerializeField] private float sittingDuration = 3f;
     [SerializeField] private float flyingDuration = 3f;
     [SerializeField] private float evadingDuration = 3f;
