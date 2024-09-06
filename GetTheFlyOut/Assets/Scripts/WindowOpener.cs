@@ -10,11 +10,12 @@ public class WindowOpener : MonoBehaviour
     [SerializeField] private GameObject windowPane;
     [SerializeField] private TMP_Text text;
     [SerializeField] private float openSpeed;
+    [SerializeField] private float closeSpeed;
+    [SerializeField] private float openCloseDistance = 5f;
 
     private bool canOpenWindow = false;
     private SpriteRenderer frameSpriteRenderer;
-    private bool windowOpening = false;
-    private float yMovement = 0;
+    private bool isWindowOpen = false;
 
     private void Start()
     {
@@ -25,48 +26,136 @@ public class WindowOpener : MonoBehaviour
     {
         canOpenWindow = windowTrigger.GetWindowTriggered();
 
-        if (canOpenWindow && !windowOpening)
+        if (canOpenWindow && !isWindowOpen)
         {
             frameSpriteRenderer.color = new Color(0.2f, 1f, 0f);
             text.text = ("spacebar to open window");
         }
-        else 
+        else
         {
             frameSpriteRenderer.color = new Color(1f, 1f, 1f);
             text.text = string.Empty;
         }
-        if (canOpenWindow && Input.GetKeyDown(KeyCode.Space) && !windowOpening) 
+        if (canOpenWindow && Input.GetKeyDown(KeyCode.Space) && !isWindowOpen)
         {
             StartCoroutine(OpenWindowCoroutine());
         }
     }
-    private IEnumerator OpenWindowCoroutine() 
+    private IEnumerator OpenWindowCoroutine()
     {
-        windowOpening = true;
+        isWindowOpen = true;
 
-        float fullyOpen = 5f; // Set this to the distance you want the window to move
-        yMovement = 0; // Reset yMovement to 0 for this animation
+        float fullyOpenDistance = openCloseDistance; // Distance to move the window (how much it should move up)
+        float yMovement = 0f; // Reset yMovement for this animation
 
-        while (yMovement < fullyOpen)
+        // Store the original Y positions of the windowPane and windowFrame
+        float originalPaneYPosition = windowPane.transform.position.y;
+        float originalFrameYPosition = windowFrame.transform.position.y;
+
+        while (yMovement < fullyOpenDistance)
         {
             // Increment yMovement based on the openSpeed and deltaTime
             yMovement += Time.deltaTime * openSpeed;
 
-            // Clamp yMovement to ensure it does not exceed fullyOpen
-            yMovement = Mathf.Min(yMovement, fullyOpen);
+            // Clamp yMovement to ensure it does not exceed fullyOpenDistance
+            float actualMovement = Mathf.Min(yMovement, fullyOpenDistance);
 
-            // Move the windowPane and windowFrame based on yMovement
-            windowPane.transform.position += new Vector3(0, Time.deltaTime * openSpeed, 0);
-            windowFrame.transform.position += new Vector3(0, Time.deltaTime * openSpeed, 0);
+            // Move the windowPane and windowFrame based on their original positions
+            windowPane.transform.position = new Vector3(
+                windowPane.transform.position.x,
+                originalPaneYPosition + actualMovement,
+                windowPane.transform.position.z
+            );
+
+            windowFrame.transform.position = new Vector3(
+                windowFrame.transform.position.x,
+                originalFrameYPosition + actualMovement,
+                windowFrame.transform.position.z
+            );
 
             // Yield until the next frame
             yield return null;
         }
 
-        // Ensure the final position is set exactly at the fullyOpen value
-        windowPane.transform.position = new Vector3(windowPane.transform.position.x, fullyOpen, windowPane.transform.position.z);
-        windowFrame.transform.position = new Vector3(windowFrame.transform.position.x, fullyOpen, windowFrame.transform.position.z);
+        // Ensure the final position is set exactly at fullyOpenDistance relative to the original position
+        windowPane.transform.position = new Vector3(
+            windowPane.transform.position.x,
+            originalPaneYPosition + fullyOpenDistance,
+            windowPane.transform.position.z
+        );
 
-        windowOpening = false; // Reset the windowOpening flag
+        windowFrame.transform.position = new Vector3(
+            windowFrame.transform.position.x,
+            originalFrameYPosition + fullyOpenDistance,
+            windowFrame.transform.position.z
+        );
+
+        StartCoroutine(CloseWindowCoroutine());
+    }
+    private IEnumerator CloseWindowCoroutine()
+    {
+        float fullyClosedDistance = openCloseDistance; // The distance to move the window to fully close it
+        float yMovement = 0f; // Reset yMovement for this animation
+
+        // Store the original Y positions of the windowPane and windowFrame (which is the fully open position now)
+        float originalPaneYPosition = windowPane.transform.position.y;
+        float originalFrameYPosition = windowFrame.transform.position.y;
+
+        // Calculate the final position when the window is fully closed (where it started before opening)
+        float targetPaneYPosition = originalPaneYPosition - fullyClosedDistance;
+        float targetFrameYPosition = originalFrameYPosition - fullyClosedDistance;
+
+        while (yMovement < fullyClosedDistance)
+        {
+            // Increment yMovement based on the openSpeed and deltaTime
+            yMovement += Time.deltaTime * closeSpeed;
+
+            // Clamp yMovement to ensure it does not exceed fullyClosedDistance
+            float actualMovement = Mathf.Min(yMovement, fullyClosedDistance);
+
+            // Move the windowPane and windowFrame based on the original positions, subtracting movement to close
+            windowPane.transform.position = new Vector3(
+                windowPane.transform.position.x,
+                originalPaneYPosition - actualMovement, // Move downward
+                windowPane.transform.position.z
+            );
+
+            windowFrame.transform.position = new Vector3(
+                windowFrame.transform.position.x,
+                originalFrameYPosition - actualMovement, // Move downward
+                windowFrame.transform.position.z
+            );
+
+            // Yield until the next frame
+            yield return null;
+        }
+
+        // Ensure the final position is set exactly at the fully closed position
+        windowPane.transform.position = new Vector3(
+            windowPane.transform.position.x,
+            targetPaneYPosition, // Fully closed
+            windowPane.transform.position.z
+        );
+
+        windowFrame.transform.position = new Vector3(
+            windowFrame.transform.position.x,
+            targetFrameYPosition, // Fully closed
+            windowFrame.transform.position.z
+        );
+
+        isWindowOpen = false; // Reset the windowOpening flag
+    }
+
+    public bool IsWindowOpen() 
+    {
+        return isWindowOpen;
+    }
+    public float GetTopOfWindowGap() 
+    {
+        return 0f;
+    }
+    public float GetBottomOfWindowGap()
+    {
+        return 0f;
     }
 }

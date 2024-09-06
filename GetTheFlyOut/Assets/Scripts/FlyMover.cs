@@ -9,6 +9,9 @@ public class FlyMover : MonoBehaviour
     private enum FlyState { Sitting, Flying, Evading, }
     private FlyState flyState;
 
+    [SerializeField] private AudioSource audioSource;
+    [SerializeField] private WindowOpener windowOpener;
+
     [SerializeField] private float flySpeed = 1;
 
     [SerializeField] private float sittingDuration = 3f;
@@ -28,6 +31,7 @@ public class FlyMover : MonoBehaviour
     {
         flyState = FlyState.Flying;
         animator = GetComponentInChildren<Animator>();
+        audioSource = GetComponent<AudioSource>();
     }
 
     void Update()
@@ -56,8 +60,11 @@ public class FlyMover : MonoBehaviour
     }
     void HandleSitting()
     {
-        //When sitting, fly will wait for appropriate input to trigger Evading
-        //If no input, it will simply switch to flying after a randomish duration
+        bool isWindowOpen = windowOpener.IsWindowOpen();
+        if (isWindowOpen) 
+        {
+            flyState = FlyState.Flying;
+        }
 
         animator.SetBool("IsFlying", false);
     }
@@ -106,12 +113,20 @@ public class FlyMover : MonoBehaviour
             flyingInDirection = true; // Ensure we keep flying in the new direction
         }
 
-        if (flyTime > flyingDuration)
+        bool isWindowOpen = windowOpener.IsWindowOpen();
+
+        if (flyTime > flyingDuration && isWindowOpen)
+        {
+            flyTime = 0;
+        }
+        if (flyTime > flyingDuration && !isWindowOpen)
         {
             flyState = FlyState.Sitting;
             flyingInDirection = false;
             flyTime = 0;
         }
+        
+
     }
     void HandleEvading()
     {
