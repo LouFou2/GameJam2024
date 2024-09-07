@@ -8,18 +8,42 @@ public class WindowOpener : MonoBehaviour
     [SerializeField] private WindowTrigger windowTrigger;
     [SerializeField] private GameObject windowFrame;
     [SerializeField] private GameObject windowPane;
+    [SerializeField] private Color highlightColor;
     [SerializeField] private TMP_Text text;
     [SerializeField] private float openSpeed;
     [SerializeField] private float closeSpeed;
     [SerializeField] private float openCloseDistance = 5f;
 
+    [SerializeField] private AudioClip openAudio;
+    [SerializeField] private AudioClip closeAudio;
+
+    private PlayerControl playerControl;
+
     private bool canOpenWindow = false;
     private SpriteRenderer frameSpriteRenderer;
     private bool isWindowOpen = false;
 
+    private AudioSource audioSource;
+
+    private void Awake()
+    {
+        playerControl = new PlayerControl();
+    }
+    private void OnEnable()
+    {
+
+        playerControl.Enable();
+    }
+    private void OnDisable()
+    {
+
+        playerControl.Disable();
+    }
+
     private void Start()
     {
         frameSpriteRenderer = windowFrame.GetComponent<SpriteRenderer>();
+        audioSource = GetComponent<AudioSource>();
     }
 
     void Update()
@@ -28,15 +52,15 @@ public class WindowOpener : MonoBehaviour
 
         if (canOpenWindow && !isWindowOpen)
         {
-            frameSpriteRenderer.color = new Color(0.2f, 1f, 0f);
-            text.text = ("spacebar to open window");
+            frameSpriteRenderer.color = new Color(highlightColor.r, highlightColor.g, highlightColor.b);
+            text.text = ("click to open window");
         }
         else
         {
             frameSpriteRenderer.color = new Color(1f, 1f, 1f);
             text.text = string.Empty;
         }
-        if (canOpenWindow && Input.GetKeyDown(KeyCode.Space) && !isWindowOpen)
+        if (canOpenWindow && playerControl.Controls.MouseClick.IsPressed() && !isWindowOpen)
         {
             StartCoroutine(OpenWindowCoroutine());
         }
@@ -44,6 +68,9 @@ public class WindowOpener : MonoBehaviour
     private IEnumerator OpenWindowCoroutine()
     {
         isWindowOpen = true;
+
+        audioSource.clip = openAudio;
+        audioSource.Play();
 
         float fullyOpenDistance = openCloseDistance; // Distance to move the window (how much it should move up)
         float yMovement = 0f; // Reset yMovement for this animation
@@ -94,6 +121,10 @@ public class WindowOpener : MonoBehaviour
     }
     private IEnumerator CloseWindowCoroutine()
     {
+        audioSource.Stop();
+        audioSource.clip = closeAudio;
+        audioSource.Play();
+
         float fullyClosedDistance = openCloseDistance; // The distance to move the window to fully close it
         float yMovement = 0f; // Reset yMovement for this animation
 

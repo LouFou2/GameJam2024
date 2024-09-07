@@ -6,6 +6,7 @@ using UnityEngine;
 public class FlyMover : MonoBehaviour
 {
     private Animator animator;
+    [SerializeField] private Collider2D handCollider;
     private enum FlyState { Sitting, Flying, Evading, }
     private FlyState flyState;
 
@@ -17,14 +18,21 @@ public class FlyMover : MonoBehaviour
     [SerializeField] private float sittingDuration = 3f;
     [SerializeField] private float flyingDuration = 3f;
     [SerializeField] private float evadingDuration = 3f;
+    [SerializeField] [Range(0, 1)] private float buzzVolume = 0.7f;
+
 
     float sitTime = 0f;
     float flyTime = 0f;
-    float evadeTime = 0f;
 
     private bool flyingInDirection = false;
     private float directionAngle = 0;
     private float zigZagTime = 0;
+
+    private bool didHandCollide = false;
+
+    private bool isEvading = false;
+
+    
 
 
     void Start()
@@ -32,6 +40,14 @@ public class FlyMover : MonoBehaviour
         flyState = FlyState.Flying;
         animator = GetComponentInChildren<Animator>();
         audioSource = GetComponent<AudioSource>();
+    }
+
+    private void OnTriggerEnter2D(Collider2D collider)
+    {
+        if (collider == handCollider) 
+        {
+            didHandCollide = true;
+        }
     }
 
     void Update()
@@ -45,13 +61,6 @@ public class FlyMover : MonoBehaviour
                 break;
             case (FlyState.Flying):
                 HandleFlying();
-                //if (flyTime == 0)
-                //    StartCoroutine(FlyingCoroutine());
-                break;
-            case (FlyState.Evading):
-                HandleEvading();
-                if (evadeTime == 0)
-                    StartCoroutine(EvadingCoroutine());
                 break;
             default:
                 flyState = FlyState.Flying;
@@ -61,15 +70,31 @@ public class FlyMover : MonoBehaviour
     void HandleSitting()
     {
         bool isWindowOpen = windowOpener.IsWindowOpen();
-        if (isWindowOpen) 
+        if (isWindowOpen || didHandCollide) 
         {
             flyState = FlyState.Flying;
         }
-
         animator.SetBool("IsFlying", false);
+        audioSource.volume = 0f;
+
+        if (didHandCollide)
+            HandleEvading();
+
+        didHandCollide = false;
+    }
+    void HandleEvading() 
+    {
+        if (!isEvading)
+            StartCoroutine(EvadingCoroutine());
     }
     void HandleFlying()
     {
+        audioSource.volume = buzzVolume;
+        // shift the pitch a little
+        if(!isEvading) //evading does a different pitch
+            audioSource.pitch = Mathf.Clamp(audioSource.pitch + Random.Range(-0.1f, 0.1f), 0.9f, 1.1f);
+
+
         //When flying, fly will fly around in random directions for a randomish time, then sit
         animator.SetBool("IsFlying", true);
 
@@ -91,7 +116,10 @@ public class FlyMover : MonoBehaviour
         }
         Vector2 direction = new Vector2(Mathf.Cos(directionAngle * Mathf.Deg2Rad), Mathf.Sin(directionAngle * Mathf.Deg2Rad)).normalized;
 
-        if (flyTime < zigZagTime)
+        if (didHandCollide)
+            HandleEvading();
+
+        if (flyTime < zigZagTime && !didHandCollide)
         {
             transform.position += new Vector3(direction.x, direction.y, 0) * flySpeed * Time.deltaTime;
         }
@@ -125,19 +153,10 @@ public class FlyMover : MonoBehaviour
             flyingInDirection = false;
             flyTime = 0;
         }
-        
+
+        didHandCollide = false;
 
     }
-    void HandleEvading()
-    {
-        //If evading, flying is more erattic. After short time evading, sit.
-    }
-    public void TriggerEvade()
-    {
-        StopAllCoroutines();  // Stop any currently running coroutines
-        StartCoroutine(EvadingCoroutine());  // Start evading immediately
-    }
-
     private IEnumerator SittingCoroutine()
     {
         flyState = FlyState.Sitting;
@@ -156,33 +175,29 @@ public class FlyMover : MonoBehaviour
         flyState = FlyState.Flying;
         sitTime = 0;
     }
-
-    private IEnumerator FlyingCoroutine()
+    private IEnumerator EvadingCoroutine() 
     {
-        flyState = FlyState.Flying;
+        float evadingTime = 0;
+        isEvading = true;
+        float ogFlyspeed = flySpeed;
 
-        flyTime += Time.deltaTime;
+        flySpeed *= 3;
+        audioSource.pitch = 1.3f;
 
-        // turn in the air as it is moving
-        float sinValue = Mathf.Sin(flyTime);
-        transform.Rotate(0, 0, sinValue);
-        
-        yield return null;
-        if (flyTime > flyingDuration) 
+        while (evadingTime < evadingDuration) 
         {
-            flyState = FlyState.Sitting;
-            flyTime = 0;
+            evadingTime += Time.deltaTime;
+
+            audioSource.pitch += Random.Range(-0.1f, 0.1f);
+            audioSource.pitch = Mathf.Clamp(audioSource.pitch, 1.1f, 1.5f);
+
+            yield return null;
         }
-    }
+        //yield return new WaitForSeconds(evadingDuration);
 
-    private IEnumerator EvadingCoroutine()
-    {
-        flyState = FlyState.Evading;
+        flySpeed = ogFlyspeed;
+        audioSource.pitch = 1f;
 
-        sitTime += Time.deltaTime;
-
-
-        yield return new WaitForSeconds(evadingDuration);
-        flyState = FlyState.Evading;
+        isEvading = false;
     }
 }
